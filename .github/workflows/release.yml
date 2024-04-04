@@ -36,12 +36,6 @@ jobs:
   pre-release:
     name: pre-release checks
     runs-on: "ubuntu-latest"
-    outputs:
-      crate: ${{ inputs.crate }}
-      runtime: ${{ steps.runtime_sub.outputs.runtime }}
-      version: ${{ inputs.version }}
-      ### is_shim is a string, not a boolean, so use: is_shim == 'true'
-      is_shim: ${{ steps.runtime_sub.outputs.is_shim }}
     steps:
       - name: Fail if branch is not main
         if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
@@ -49,15 +43,6 @@ jobs:
           echo "This workflow should not be triggered with workflow_dispatch on a branch other than main"
           exit 1
       - uses: actions/checkout@v4
-      ### Determine the name of the runtime and if it is a binary release or crates.io
-      - name: verify version input
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const version = '${{ inputs.version }}';
-            if(!version.match(/^[0-9]+.[0-9]+.*/)) {
-              core.setFailed(`The version '${version}' does not match regex /^[0-9]+.[0-9]+.*/.`);
-            }
       - name: substring runtime
         id: runtime_sub
         uses: actions/github-script@v7
@@ -73,152 +58,49 @@ jobs:
         if: ${{ steps.runtime_sub.outputs.is_shim != 'true' }}
         run: |
           cargo owner --list ${{ inputs.crate }} | grep github:containerd:runwasi-committers || \
-            cargo owner --add github:containerd:runwasi-committers ${{ inputs.crate }}
+          cargo owner --add github:containerd:runwasi-committers ${{ inputs.crate }}
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_PUBLISH_TOKEN }}
-      - name: Verify version matches
-        run: |
-          if [ "$(grep -c "version = \"${{ inputs.version }}\"" crates/${{ inputs.crate }}/Cargo.toml)" -ne 1 ]; then
-            echo "Version in Cargo.toml does not match the version input"
-            exit 1
-          fi
-
-  build-and-sign:
-    permissions:
-      # cosign uses the GitHub OIDC token
-      id-token: write
-    needs:
-      - pre-release
-    strategy:
-      matrix:
-        arch: ["x86_64", "aarch64"]
-        include: 
-          - ${{ needs.pre-release.outputs }}
-    runs-on: "ubuntu-22.04"
-    steps:
-      - name: Matrix description
-        run: |
-          echo "Running job with dry_run: '${{ inputs.dry_run }}' crate: '${{ matrix.crate }}', version: '${{ matrix.version }}', runtime: '${{ matrix.runtime }}', and is_shim: '${{ matrix.is_shim }}'."
-      - uses: actions/checkout@v4
-      - name: Setup build env
-        run: ./scripts/setup-linux.sh
-      - name: Setup rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        env:
-          RUST_CACHE_KEY_OS: rust-release-cache-${{ matrix.crate }}-${{ matrix.arch }}
-        with:
-          rustflags: '' #Disable.  By default this action sets environment variable is set to -D warnings.  We manage this in the Makefile
-      - name: Setup cross-rs
-        run: ./scripts/setup-cross.sh ${{ matrix.arch }}-unknown-linux-musl
-      - name: Setup build profile
-        shell: bash
-        run: echo "OPT_PROFILE=release" >> ${GITHUB_ENV}
-      - name: Setup cosign for signing
-        if: ${{ matrix.is_shim == 'true' }}
-        uses: sigstore/cosign-installer@v3.3.0
-        with:
-          cosign-release: 'v2.2.2'
-      - name: Build
-        timeout-minutes: 20
-        run: make build-${{ matrix.runtime }}
-      - name: Test
-        if: ${{ matrix.arch == 'x86_64' }}
-        timeout-minutes: 10
-        run: make test-${{ matrix.runtime }}
-      - name: Sign the binary
-        if: ${{ matrix.is_shim == 'true' }}
-        run: |
-          make dist-${{ matrix.runtime }}
-          # Check if there's any files to archive as tar fails otherwise
-          if stat dist/bin/* >/dev/null 2>&1; then
-            cosign sign-blob --yes \
-              --output-signature containerd-shim-${{ matrix.runtime }}-v1.sig \
-              --output-certificate containerd-shim-${{ matrix.runtime }}-v1.pem \
-              --bundle containerd-shim-${{ matrix.runtime }}-v1.bundle \
-              dist/bin/containerd-shim-${{ matrix.runtime }}-v1
-            
-            cosign sign-blob --yes \
-              --output-signature containerd-shim-${{ matrix.runtime }}d-v1.sig \
-              --output-certificate containerd-shim-${{ matrix.runtime }}d-v1.pem \
-              --bundle containerd-shim-${{ matrix.runtime }}d-v1.bundle \
-              dist/bin/containerd-shim-${{ matrix.runtime }}d-v1
-
-            cosign sign-blob --yes \
-              --output-signature containerd-${{ matrix.runtime }}d.sig \
-              --output-certificate containerd-${{ matrix.runtime }}d.pem \
-              --bundle containerd-${{ matrix.runtime }}d.bundle \
-              dist/bin/containerd-${{ matrix.runtime }}d
-            
-            # Copy the certs to the dist/bin folder
-            cp *.sig dist/bin/
-            cp *.pem dist/bin/
-          else
-            echo "No files to sign"
-          fi
-      - name: Package artifacts
-        if: ${{ matrix.is_shim == 'true' }}
-        shell: bash
-        run: |
-          # Check if there's any files to archive as tar fails otherwise
-          if stat dist/bin/* >/dev/null 2>&1; then
-            tar -czf dist/containerd-shim-${{ matrix.runtime }}-${{ matrix.arch }}.tar.gz -C dist/bin .
-          else
-            tar -czf dist/containerd-shim-${{ matrix.runtime }}-${{ matrix.arch }}.tar.gz -T /dev/null
-          fi
-      - name: Upload artifacts
-        if: ${{ matrix.is_shim == 'true' }}
-        uses: actions/upload-artifact@master
-        with:
-          name: containerd-shim-${{ matrix.runtime }}-${{ matrix.arch }}
-          path: dist/containerd-shim-${{ matrix.runtime }}-${{ matrix.arch }}.tar.gz
-
-  release:
-    permissions:
-      contents: write
-    needs:
-      - pre-release
-      - build-and-sign
-    strategy:
-      matrix:
-        os: ["ubuntu-latest"]
-        include: 
-          - ${{ needs.pre-release.outputs }}
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Matrix description
-        run: |
-          echo "Running job with dry_run: '${{ inputs.dry_run }}', crate: '${{ matrix.crate }}', version: '${{ matrix.version }}', runtime: '${{ matrix.runtime }}', and is_shim: '${{ matrix.is_shim }}'."
-      - uses: actions/checkout@v4
-      - name: Setup build env
-        run: ./scripts/setup-linux.sh
-      - name: Download artifacts
-        if: ${{ matrix.is_shim == 'true' }}
-        uses: actions/download-artifact@master
-        with:
-          path: release
-      - name: Cargo publish
-        if: ${{ matrix.is_shim  != 'true' }}
-        run: cargo publish ${{ inputs.dry_run && '--dry-run' || '' }} --package ${{ matrix.crate }} --verbose --locked
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_PUBLISH_TOKEN }}
-      - name: Tag the the release
+      - name: Update crate version and make a PR
         if: ${{ !inputs.dry_run }}
         run: |
-          git tag "${{matrix.crate}}/v${{matrix.version}}"
-          git push origin "${{matrix.crate}}/v${{matrix.version}}"
-      - name: Create release
-        if: ${{ !inputs.dry_run }}
-        run: |
-          gh release create 'refs/tags/${{matrix.crate}}/v${{matrix.version}}' --generate-notes --prerelease
+          # replace the version inline in the Cargo.toml
+          set -ex
+          git fetch origin
+
+          sed -i -E 's/^version.+=.+".+"/version = "${{ inputs.version }}"/' crates/${{ inputs.crate }}/Cargo.toml
+          git diff
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          
+          if [ "${{ inputs.dry_run }}" = true ]; then
+            TITLE="[dry-run] Release ${{ inputs.crate }} v${{ inputs.version }}"
+          else
+            TITLE="Release ${{ inputs.crate }} v${{ inputs.version }}"
+          fi
+
+          git commit --allow-empty -a -F-<<EOF
+          $TITLE
+
+          [automatically-tag-and-release-this-commit]
+          EOF
+
+          git push origin HEAD:ci/release-${{ inputs.crate }}-${{ inputs.version }}
+          
+          echo "PR_HEAD=ci/release-${{ inputs.crate }}-${{ inputs.version }}" >> $GITHUB_ENV
+          echo "PR_TITLE=$TITLE" >> $GITHUB_ENV
+          echo "PR_BASE=main" >> $GITHUB_ENV
+          cat > pr-body <<-EOF
+          This is an automated pull request from CI to release
+          ${{ inputs.crate }} v${{ inputs.version }} when merged. The commit
+          message for this PR has a marker that is detected by CI to create
+          tags and publish crate artifacts.
+
+          When first opened this PR will not have CI run because it is generated
+          by a bot. A maintainer should close this PR and then reopen it to
+          trigger CI to execute which will then enable merging this PR.
+          EOF
+      - name: Make a PR
+        run: gh pr create -B "$PR_BASE" -H "$PR_HEAD" --title "$PR_TITLE" --body "$(cat ./pr-body)"
         env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_NAME: ${{ matrix.crate }}/v${{ matrix.version }}
-      - name: Upload release artifacts
-        if: ${{ matrix.is_shim == 'true' && !inputs.dry_run }}
-        run: |
-          for i in release/*/*; do
-            gh release upload ${RELEASE_NAME} $i
-          done
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_NAME: ${{ matrix.crate }}/v${{ matrix.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
