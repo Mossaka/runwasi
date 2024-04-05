@@ -51,9 +51,9 @@ jobs:
           echo "crate: $crate"
           echo "version: $version"
           
-          echo "dry_run:$dry_run" >> $GITHUB_OUTPUT
-          echo "crate:$crate" >> $GITHUB_OUTPUT
-          echo "version:$version" >> $GITHUB_OUTPUT
+          echo "dry_run=$dry_run" >> $GITHUB_OUTPUT
+          echo "crate=$crate" >> $GITHUB_OUTPUT
+          echo "version=$version" >> $GITHUB_OUTPUT
         
       - name: parse crate
         id: parse_crate
