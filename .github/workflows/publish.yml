@@ -43,6 +43,8 @@ jobs:
         run: |
           ./scripts/parse-crate.sh main.log >> $GITHUB_OUTPUT
   sign:
+    needs: [parse]
+    if: needs.parse.outputs.push_tag == 'yes'
     uses: ./.github/workflows/action-sign.yml
     with:
       runtime: ${{ needs.parse.outputs.runtime }}
