@@ -49,6 +49,7 @@ jobs:
       - name: describe runner
         run: |
           echo "::notice::Running job with push_tag: '${{ needs.parse.outputs.push_tag }}', dry_run: '${{ needs.parse.outputs.dry_run }}', crate: '${{ needs.parse.outputs.crate }}', runtime: '${{ needs.parse.outputs.runtime }}', version: '${{ needs.parse.outputs.version }}', is_binary: '${{ needs.parse.outputs.is_binary }}', is_crate: '${{ needs.parse.outputs.is_crate }}'"
+      
       - uses: actions/checkout@v4
       - name: Download artifacts
         if: needs.parse.outputs.is_binary == 'true'

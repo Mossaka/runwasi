@@ -83,6 +83,8 @@ jobs:
           $TITLE
 
           [automatically-tag-and-release-this-commit]
+          Version: v${{ inputs.version }}
+          Crate: ${{ inputs.crate }}
           EOF
 
           git push origin HEAD:ci/release-${{ inputs.crate }}-${{ inputs.version }}

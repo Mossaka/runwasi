@@ -9,8 +9,8 @@ log_file="$1"
 
 # extract crate and version from log file
 dry_run=false
-crate=$(grep 'Release ' "$log_file" | sed 's/.*Release \([a-zA-Z0-9_-]*\).*/\1/')
-version=$(grep 'Release ' "$log_file" | sed 's/.* v\(.*\)/\1/')
+crate=$(grep 'Crate: ' "$log_file" | sed 's/.*Crate: \([a-zA-Z0-9_-]*\).*/\1/')
+version=$(grep 'Version: ' "$log_file" | sed 's/.*Version: v\(.*\)/\1/')
 if grep -q '\[dry-run\]' "$log_file"; then
     dry_run=true
 fi
