@@ -10,12 +10,12 @@ on:
         type: string
       is_binary:
         required: true
-        type: boolean
+        type: string
 jobs:
   sign:
     name: Sign the binaries
     runs-on: "ubuntu-latest"
-    if: ${{ inputs.is_binary }}
+    if: ${{ inputs.is_binary == 'true' }}
     steps:
     - uses: actions/checkout@v4
     - name: Setup cosign for signing
