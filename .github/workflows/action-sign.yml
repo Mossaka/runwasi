@@ -8,46 +8,73 @@ on:
       runtime:
         required: true
         type: string
-      path: 
+      is_binary:
         required: true
-        type: string
+        type: boolean
 jobs:
   sign:
     name: Sign the binaries
     runs-on: "ubuntu-latest"
+    if: ${{ inputs.is_binary }}
     steps:
     - uses: actions/checkout@v4
     - name: Setup cosign for signing
       uses: sigstore/cosign-installer@v3.3.0
       with:
         cosign-release: 'v2.2.2'
+    - name: download artifact from main
+      uses: dawidd6/action-download-artifact@v3
+      with:
+        github_token: ${{secrets.GITHUB_TOKEN}}
+        branch: main
+        path: artifacts
+    - name: unpack artifact
+      run: |
+        mkdir -p dist  
+        if stat artifacts/* >/dev/null 2>&1; then
+          tar -xzf artifacts/containerd-shim-${{ inputs.runtime }}.tar.gz -C dist
+        else
+          echo "::warning::No artifacts"
+        fi
+
     - name: Sign the binaries
       run: |
-        make dist-${{ inputs.runtime }}
         # Check if there's any files to archive as tar fails otherwise
-        if stat ${{ inputs.path }}/* >/dev/null 2>&1; then
+        if stat dist/* >/dev/null 2>&1; then
           echo "::notice::Signing the binary"
           cosign sign-blob --yes \
             --output-signature containerd-shim-${{ inputs.runtime }}-v1.sig \
             --output-certificate containerd-shim-${{ inputs.runtime }}-v1.pem \
             --bundle containerd-shim-${{ inputs.runtime }}-v1.bundle \
-            ${{ inputs.path }}/containerd-shim-${{ inputs.runtime }}-v1
+            dist/containerd-shim-${{ inputs.runtime }}-v1
           
           cosign sign-blob --yes \
             --output-signature containerd-shim-${{ inputs.runtime }}d-v1.sig \
             --output-certificate containerd-shim-${{ inputs.runtime }}d-v1.pem \
             --bundle containerd-shim-${{ inputs.runtime }}d-v1.bundle \
-            ${{ inputs.path }}/containerd-shim-${{ inputs.runtime }}d-v1
+            dist/containerd-shim-${{ inputs.runtime }}d-v1
 
           cosign sign-blob --yes \
             --output-signature containerd-${{ inputs.runtime }}d.sig \
             --output-certificate containerd-${{ inputs.runtime }}d.pem \
             --bundle containerd-${{ inputs.runtime }}d.bundle \
-            ${{ inputs.path }}/containerd-${{ inputs.runtime }}d
+            dist/containerd-${{ inputs.runtime }}d
           
-          # Copy the certs to the dist/bin folder
-          cp *.sig ${{ inputs.path }}/
-          cp *.pem ${{ inputs.path }}/
+          # Copy the certs to the dist folder
+          cp *.sig dist/
+          cp *.pem dist/
         else
           echo "::warning::No files to sign"
         fi
+    - name: package artifacts
+      run: |
+        if stat dist/* >/dev/null 2>&1; then
+          tar -czf dist-${{ inputs.runtime }}.tar.gz -C dist .
+        else
+          echo "::warning::No files to package"
+        fi
+    - name: Upload the signed binaries
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist-${{ inputs.runtime }}
+        path: dist/dist-${{ inputs.runtime }}.tar.gz
