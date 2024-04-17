@@ -35,6 +35,7 @@ jobs:
           else
             echo no-push-tag
             echo "push_tag=no" >> $GITHUB_OUTPUT
+            echo "::notice::No tag needed, skipping release"
           fi
       - name: Parse commit message
         id: parse
