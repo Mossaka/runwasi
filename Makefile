@@ -6,6 +6,9 @@ TEST_IMG_NAME ?= wasmtest:latest
 RUNTIMES ?= wasmedge wasmtime wasmer
 CONTAINERD_NAMESPACE ?= default
 RUSTC ?= rustc
+DOCKER_BUILD ?= docker buildx build
+KIND_CLUSTER_NAME ?= containerd-wasm
+OPT_PROFILE ?= debug
 
 # We have a bit of fancy logic here to determine the target 
 # since we support building for gnu and musl
@@ -42,14 +45,17 @@ else
 override TARGET_DIR := $(or $(TARGET_DIR),./target/)
 TEST_ARGS_SEP= --
 endif
+
+# The `--target` and `--target-dir` flags are used for building/testing
 TARGET_FLAG = --target=$(TARGET) --target-dir=$(TARGET_DIR)
 
-OPT_PROFILE ?= debug
+# Determine the release flag based on the OPT_PROFILE
 RELEASE_FLAG :=
 ifeq ($(OPT_PROFILE),release)
 RELEASE_FLAG = --release
 endif
 
+# Determine the features to use for the WasmEdge shim
 FEATURES_wasmedge = 
 WARNINGS = -D warnings
 ifeq ($(OS), Windows_NT)
@@ -59,12 +65,9 @@ FEATURES_wasmedge = --no-default-features
 WARNINGS = 
 endif
 
-DOCKER_BUILD ?= docker buildx build
-
-KIND_CLUSTER_NAME ?= containerd-wasm
-
 export
 
+# Build the crates and shims
 .PHONY: build build-common build-wasm build-%
 build: build-wasm $(RUNTIMES:%=build-%);
 
@@ -78,6 +81,7 @@ build-%:
 build-oci-tar-builder:
 	$(CARGO) build $(TARGET_FLAG) -p oci-tar-builder $(FEATURES_$*) $(RELEASE_FLAG)
 
+# Check the formatting and linting of the code
 .PHONY: check check-common check-wasm check-%
 check: check-wasm $(RUNTIMES:%=check-%);
 
@@ -92,6 +96,7 @@ check-%:
 	CARGO= $(CARGO) +nightly fmt -p containerd-shim-$* -- --check
 	$(CARGO) clippy $(TARGET_FLAG) $(FEATURES_$*) -p containerd-shim-$* -- $(WARNINGS)
 
+# Fix the formatting and linting of the code
 .PHONY: fix fix-common fix-wasm fix-%
 fix: fix-wasm $(RUNTIMES:%=fix-%);
 
@@ -106,6 +111,7 @@ fix-%:
 	CARGO= $(CARGO) +nightly fmt -p containerd-shim-$*
 	$(CARGO) clippy $(TARGET_FLAG) $(FEATURES_$*) --fix -p containerd-shim-$* -- $(WARNINGS)
 
+# Test the crates and shims
 .PHONY: test test-common test-wasm test-wasmedge test-%
 test: test-wasm $(RUNTIMES:%=test-%);
 
@@ -131,6 +137,7 @@ test-%:
 test-oci-tar-builder:
 	RUST_LOG=trace $(CARGO) test $(TARGET_FLAG) --package oci-tar-builder $(FEATURES_$*) --verbose $(TEST_ARGS_SEP) --nocapture --test-threads=1
 
+# Install targets
 .PHONY: install install-%
 install: $(RUNTIMES:%=install-%);
 
@@ -140,19 +147,23 @@ install-%:
 	$(LN) ./containerd-shim-$*-v1 $(PREFIX)/bin/containerd-shim-$*d-v1
 	$(LN) ./containerd-shim-$*-v1 $(PREFIX)/bin/containerd-$*d
 
+# Install targets on dist for integration testing
 .PHONY: dist dist-%
 dist: $(RUNTIMES:%=dist-%);
 
 dist-%:
 	[ -f $(PWD)/dist/bin/containerd-shim-$*-v1 ] || $(MAKE) install-$* CARGO=$(CARGO) PREFIX="$(PWD)/dist" OPT_PROFILE="$(OPT_PROFILE)"
 
+# Clean dist
 .PHONY: dist/clean
 dist/clean:
 	rm -rf dist
 
+# Install all targets
 .PHONY: install/all
 install/all: test-image/clean install test-image load
 
+# Install all targets for OCI
 .PHONY: install/oci/all
 install/oci/all: test-image/oci/clean install test-image/oci load/oci
 
@@ -170,6 +181,7 @@ test-image/clean:
 test-image/oci/clean:
 	rm -rf target/wasm32-wasi/$(OPT_PROFILE)/img-oci.tar
 
+# Build the demo app
 .PHONY: demo-app
 demo-app: target/wasm32-wasi/$(OPT_PROFILE)/wasi-demo-app.wasm
 
@@ -181,6 +193,7 @@ target/wasm32-wasi/$(OPT_PROFILE)/wasi-demo-app.wasm:
 target/wasm32-wasi/$(OPT_PROFILE)/img.tar: target/wasm32-wasi/$(OPT_PROFILE)/wasi-demo-app.wasm
 	cd crates/wasi-demo-app && cargo build $(RELEASE_FLAG) --features oci-v1-tar
 
+# Install the demo app image to dist/img.tar
 .PHONY: dist/img.tar
 dist/img.tar:
 	@mkdir -p "dist/"
@@ -191,9 +204,11 @@ dist/img-oci.tar: target/wasm32-wasi/$(OPT_PROFILE)/img-oci.tar
 	@mkdir -p "dist/"
 	cp "$<" "$@"
 
+# Load the image into Containerd
 load: dist/img.tar
 	sudo ctr -n $(CONTAINERD_NAMESPACE) image import --all-platforms $<
 
+# Load the OCI image into Containerd
 CTR_VERSION := $(shell sudo ctr version | sed -n -e '/Version/ {s/.*: *//p;q;}')
 load/oci: dist/img-oci.tar
 	@echo $(CTR_VERSION)\\nv1.7.7 | sort -crV || @echo $(CTR_VERSION)\\nv1.6.25 | sort -crV || (echo "containerd version must be 1.7.7+ or 1.6.25+ was $(CTR_VERSION)" && exit 1)
@@ -205,6 +220,7 @@ target/wasm32-wasi/$(OPT_PROFILE)/img-oci.tar: target/wasm32-wasi/$(OPT_PROFILE)
 	mkdir -p ${CURDIR}/bin/$(OPT_PROFILE)/
 	cargo run --bin oci-tar-builder -- --name wasi-demo-oci --repo ghcr.io/containerd/runwasi --tag latest --module ./target/wasm32-wasi/$(OPT_PROFILE)/wasi-demo-app.wasm -o target/wasm32-wasi/$(OPT_PROFILE)/img-oci.tar
 
+# Build the kind cluster image
 bin/kind: test/k8s/Dockerfile
 	$(DOCKER_BUILD) --output=bin/ -f test/k8s/Dockerfile --target=kind .
 
