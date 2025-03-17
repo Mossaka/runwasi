@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742172346475,
+  "lastUpdate": 1742172393218,
   "repoUrl": "https://github.com/Mossaka/runwasi",
   "entries": {
     "Criterion.rs Benchmark": [
@@ -348,6 +348,52 @@ window.BENCHMARK_DATA = {
             "value": 82885667,
             "range": "± 1525354",
             "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Jorge Prendes",
+            "username": "jprendes",
+            "email": "jorge.prendes@gmail.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "f3481703dd0d4b6b2ff9c72c4fd3ff54e2cd372b",
+          "message": "Merge pull request #877 from CaptainVincent/wasmedge-enable-plugin\n\nAdd plugin support to WasmEdge runtime",
+          "timestamp": "2025-03-12T23:23:48Z",
+          "url": "https://github.com/Mossaka/runwasi/commit/f3481703dd0d4b6b2ff9c72c4fd3ff54e2cd372b"
+        },
+        "date": 1742172392868,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "wamr/memory-usage",
+            "value": 15400,
+            "unit": "kB",
+            "extra": "shim: 12416 kB\nzygote: 2984 kB"
+          },
+          {
+            "name": "wasmedge/memory-usage",
+            "value": 66256,
+            "unit": "kB",
+            "extra": "shim: 53504 kB\nzygote: 12752 kB"
+          },
+          {
+            "name": "wasmer/memory-usage",
+            "value": 18952,
+            "unit": "kB",
+            "extra": "shim: 15360 kB\nzygote: 3592 kB"
+          },
+          {
+            "name": "wasmtime/memory-usage",
+            "value": 20028,
+            "unit": "kB",
+            "extra": "shim: 16384 kB\nzygote: 3644 kB"
           }
         ]
       }
