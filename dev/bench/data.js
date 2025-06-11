@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749603010532,
+  "lastUpdate": 1749603081383,
   "repoUrl": "https://github.com/Mossaka/runwasi",
   "entries": {
     "Criterion.rs Benchmark": [
@@ -10370,6 +10370,76 @@ window.BENCHMARK_DATA = {
             "value": 19176,
             "unit": "kB",
             "extra": "shim: 15620 kB\nzygote: 3556 kB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Jiaxiao Zhou",
+            "username": "Mossaka",
+            "email": "duibao55328@gmail.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "aee137d4c33294951b4e6927fae6e59a14ed3bf8",
+          "message": "Merge pull request #949 from Mossaka/fix-release-pipeline-shimkit3\n\nRELEASE: update condition for crates.io ownership check",
+          "timestamp": "2025-03-26T18:06:04Z",
+          "url": "https://github.com/Mossaka/runwasi/commit/aee137d4c33294951b4e6927fae6e59a14ed3bf8"
+        },
+        "date": 1749603080050,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "end-to-end/wasmtime/wasi-demo-app:latest",
+            "value": 142860272,
+            "range": "± 3277554",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "end-to-end/wasmtime/wasi-demo-oci:latest",
+            "value": 86148392,
+            "range": "± 2563916",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "end-to-end/wasmedge/wasi-demo-app:latest",
+            "value": 114843521,
+            "range": "± 2018436",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "end-to-end/wasmedge/wasi-demo-oci:latest",
+            "value": 126531319,
+            "range": "± 6116971",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "end-to-end/wasmer/wasi-demo-app:latest",
+            "value": 139095971,
+            "range": "± 4446253",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "end-to-end/wasmer/wasi-demo-oci:latest",
+            "value": 139539218,
+            "range": "± 2563424",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "end-to-end/wamr/wasi-demo-app:latest",
+            "value": 87923580,
+            "range": "± 3096866",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "end-to-end/wamr/wasi-demo-oci:latest",
+            "value": 88242281,
+            "range": "± 1437135",
+            "unit": "ns/iter"
           }
         ]
       }
