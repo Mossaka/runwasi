@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783046700663,
+  "lastUpdate": 1783129558281,
   "repoUrl": "https://github.com/Mossaka/runwasi",
   "entries": {
     "Criterion.rs Benchmark": [
@@ -55216,6 +55216,52 @@ window.BENCHMARK_DATA = {
             "value": 285527973,
             "range": "± 6175944",
             "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Jiaxiao Zhou",
+            "username": "Mossaka",
+            "email": "duibao55328@gmail.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "aee137d4c33294951b4e6927fae6e59a14ed3bf8",
+          "message": "Merge pull request #949 from Mossaka/fix-release-pipeline-shimkit3\n\nRELEASE: update condition for crates.io ownership check",
+          "timestamp": "2025-03-26T18:06:04Z",
+          "url": "https://github.com/Mossaka/runwasi/commit/aee137d4c33294951b4e6927fae6e59a14ed3bf8"
+        },
+        "date": 1783129540729,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "wamr/memory-usage",
+            "value": 15384,
+            "unit": "kB",
+            "extra": "shim: 12360 kB\nzygote: 3024 kB"
+          },
+          {
+            "name": "wasmedge/memory-usage",
+            "value": 66660,
+            "unit": "kB",
+            "extra": "shim: 53904 kB\nzygote: 12756 kB"
+          },
+          {
+            "name": "wasmer/memory-usage",
+            "value": 18768,
+            "unit": "kB",
+            "extra": "shim: 15100 kB\nzygote: 3668 kB"
+          },
+          {
+            "name": "wasmtime/memory-usage",
+            "value": 19628,
+            "unit": "kB",
+            "extra": "shim: 16060 kB\nzygote: 3568 kB"
           }
         ]
       }
